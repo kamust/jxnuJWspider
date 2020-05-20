@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# cookies
+JWCookies.json
+
+# vscode
+.vscode/
+
+# test
+test/
