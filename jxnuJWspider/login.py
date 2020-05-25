@@ -17,6 +17,12 @@ class JWclient:
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0",
     }
     def __init__(self,usrnum,password):
+        # 建立对象的时候直接调用登录
+        self.login(usrnum,password)
+
+    def login(self,usrnum,password):
+        # 创建会话并登录
+        # 先尝试使用cookies，如果登陆失败，再用账号密码登录
         if os.path.isfile(self.cookiePath):
             self.loadCookies()
             if self.loginStatus():
@@ -24,12 +30,9 @@ class JWclient:
                 return
             else:
                 self._session.cookies.clear_session_cookies()
-        self.login(usrnum,password)
-
-    def login(self,usrnum,password):
         print(f"cookie失效或不存在，开始登录...")
         url='https://jwc.jxnu.edu.cn/Portal/LoginAccount.aspx?t=account'
-        loginPage=self.getHtmlText(url)
+        loginPage=self._getHtmlText(url)
         ccUrl='https://jwc.jxnu.edu.cn/Portal/'+re.findall(r'<img id="_ctl0_cphContent_imgPasscode" src="(.*?)" border="0" style="height:32px;width:80px;" />',loginPage,re.I)[0]
         img=Image.open(BytesIO(requests.get(ccUrl).content))
         img.show()
@@ -56,7 +59,7 @@ class JWclient:
         except ConnectionError:
             raise
     
-    def getHtmlText(self, url,coding='utf-8'):
+    def _getHtmlText(self, url,coding='utf-8'):
         try:
             r = self._session.get(url, headers=self.header)
             #print(f"Status : {r.status_code}")
@@ -68,6 +71,7 @@ class JWclient:
             raise
 
     def _getHiddenvalue(self,text):
+        # 获取VIEWSTATE和EVENTVALIDATION
         data={
             '__VIEWSTATE':re.findall(r'<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="(.*?)" />',text,re.I)[0],
             '__EVENTVALIDATION':re.findall(r'<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="(.*?)" />',text,re.I)[0]
@@ -75,17 +79,19 @@ class JWclient:
         return data
     
     def saveCookies(self):
+        # 保存cookies
         with open(self.cookiePath, "w") as fp:
             json.dump(requests.utils.dict_from_cookiejar(self._session.cookies), fp)
     
     def loadCookies(self):
+        # 载入cookies
         with open(self.cookiePath, "r") as fp:
             self._session.cookies=requests.utils.cookiejar_from_dict(json.load(fp))
     
     def loginStatus(self):
         #通过访问个人信息页面来判断是否为登录状态
         routeUrl = "https://jwc.jxnu.edu.cn/User/Default.aspx"
-        if re.search(r'江西师范大学 教务在线', self.getHtmlText(routeUrl)):
+        if re.search(r'江西师范大学 教务在线', self._getHtmlText(routeUrl)):
             return True
         else:
             return False

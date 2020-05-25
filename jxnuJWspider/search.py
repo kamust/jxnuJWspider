@@ -42,7 +42,7 @@ class SearchClient(JWclient):
             '_ctl1:ddlSQLType': SQLType,
             '_ctl1:btnSearch': '查询',
         }
-        postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl[SType])))
+        postData.update(self._getHiddenvalue(self._getHtmlText(self.__searchUrl[SType])))
         return self.__handleResp(self._session.post(self.__searchUrl[SType], data=postData, headers=self.header),SType)
     
     def searchByUnit(self,SType,college,sclass=''):
@@ -78,7 +78,7 @@ class SearchClient(JWclient):
         postData={
             '_ctl1:rbtType': 'College'
         }
-        postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl[SType])))
+        postData.update(self._getHiddenvalue(self._getHtmlText(self.__searchUrl[SType])))
         req=self._session.post(self.__searchUrl[SType], data=postData, headers=self.header)
         if SType=='教工' or college==None:
             return self._getHiddenvalue(req.text)
@@ -97,7 +97,7 @@ class SearchClient(JWclient):
             postData={
                 '_ctl1:rbtType': 'College'
             }
-            postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl['教工'])))
+            postData.update(self._getHiddenvalue(self._getHtmlText(self.__searchUrl['教工'])))
             req=self._session.post(self.__searchUrl['教工'], data=postData, headers=self.header)
             table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_ddlCollege")
             for op in table.find_all('option'):
