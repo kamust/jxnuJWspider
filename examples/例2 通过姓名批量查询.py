@@ -43,7 +43,7 @@ if __name__ == "__main__":
         #调用查询并返回到data
         data=jwsc.search('学生',r1[0],'姓名','精确')
 
-        #当查询值大于1时(同名同姓)，选取一种颜色作为填充，否则填充白色
+        #当查询结果数大于1时(同名同姓)，选取一种颜色作为填充，否则填充白色
         if len(data)>1:
             cfill = openpyxl.styles.PatternFill(fill_type="solid", fgColor=colors[random.randint(0,8)])
         else:
