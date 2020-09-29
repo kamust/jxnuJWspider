@@ -32,7 +32,7 @@ class JWclient:
                 self._session.cookies.clear_session_cookies()
         print(f"cookie失效或不存在，开始登录...")
         url='https://jwc.jxnu.edu.cn/Portal/LoginAccount.aspx?t=account'
-        loginPage=self._getHtmlText(url)
+        loginPage=self.getHtmlText(url)
         ccUrl='https://jwc.jxnu.edu.cn/Portal/'+re.findall(r'<img id="_ctl0_cphContent_imgPasscode" src="(.*?)" border="0" style="height:32px;width:80px;" />',loginPage,re.I)[0]
         img=Image.open(BytesIO(requests.get(ccUrl).content))
         img.show()
@@ -59,7 +59,7 @@ class JWclient:
         except ConnectionError:
             raise
     
-    def _getHtmlText(self, url,coding='utf-8'):
+    def getHtmlText(self, url,coding='utf-8'):
         try:
             r = self._session.get(url, headers=self.header)
             #print(f"Status : {r.status_code}")
@@ -67,9 +67,16 @@ class JWclient:
             r.encoding = coding
             return r.text
         except:
-            print('网络连接发生错误')
+            print('网络连接发生错误，请检查网络后重试')
             raise
-
+    def getHtmlContent(self,url):
+        try:
+            r = self._session.get(url, headers=self.header)
+            r.raise_for_status()  # 如果非200产生异常
+            return r.content
+        except:
+            print('网络连接发生错误，请检查网络后重试')
+            raise
     def _getHiddenvalue(self,text):
         # 获取VIEWSTATE和EVENTVALIDATION
         data={
@@ -91,7 +98,7 @@ class JWclient:
     def loginStatus(self):
         #通过访问个人信息页面来判断是否为登录状态
         routeUrl = "https://jwc.jxnu.edu.cn/User/Default.aspx"
-        if re.search(r'江西师范大学 教务在线', self._getHtmlText(routeUrl)):
+        if re.search(r'江西师范大学 教务在线', self.getHtmlText(routeUrl)):
             return True
         else:
             return False
