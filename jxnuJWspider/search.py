@@ -2,20 +2,21 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-from jxnuJWspider.login import JWclient
+from .login import JWclient, getHiddenvalue
+
+SEARCH_URL={
+    '学生':r"https://jwc.jxnu.edu.cn/User/default.aspx?&&code=119&uctl=MyControl%5call_searchstudent.ascx",
+    '教工':r"https://jwc.jxnu.edu.cn/User/default.aspx?&&code=120&uctl=MyControl%5call_teacher.ascx"
+}
+DATA_KEYS={
+    '学生':['所在单位','班级名称','姓名','学号','性别'],
+    '教工':['所在单位','姓名','教号','性别']
+}
 
 class SearchClient(JWclient):
     def __init__(self,usrnum,password):
         super().__init__(usrnum,password)
-        self.__searchUrl={
-            '学生':r"https://jwc.jxnu.edu.cn/User/default.aspx?&&code=119&uctl=MyControl%5call_searchstudent.ascx",
-            '教工':r"https://jwc.jxnu.edu.cn/User/default.aspx?&&code=120&uctl=MyControl%5call_teacher.ascx"
-        }
-        self.__dataKeys={
-            '学生':['所在单位','班级名称','姓名','学号','性别'],
-            '教工':['所在单位','姓名','教号','性别']
-        }
-        self.__unitIds={}
+        self.__unitIds=None
 
     def search(self,SType,value,SWay='姓名',SQLType='精确'):
         """
@@ -42,8 +43,8 @@ class SearchClient(JWclient):
             '_ctl1:ddlSQLType': SQLType,
             '_ctl1:btnSearch': '查询',
         }
-        postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl[SType])))
-        return self.__handleResp(self._session.post(self.__searchUrl[SType], data=postData, headers=self.header),SType)
+        postData.update(getHiddenvalue(self.getHtmlText(SEARCH_URL[SType])))
+        return self.__handleResp(self._session.post(SEARCH_URL[SType], data=postData, headers=self.header),SType)
     
     def searchByUnit(self,SType,college,sclass=''):
         """ 
@@ -70,7 +71,7 @@ class SearchClient(JWclient):
         if SType=='学生':
             postData['_ctl1:ddlClass']=self.__unitIds[college]['classes'][sclass]
         postData.update(self.__getHiddenvalueOfUnitStu(SType,college))
-        req=self._session.post(self.__searchUrl[SType], data=postData, headers=self.header)
+        req=self._session.post(SEARCH_URL[SType], data=postData, headers=self.header)
         #print(req.status_code)
         return self.__handleResp(req,SType)
 
@@ -78,59 +79,85 @@ class SearchClient(JWclient):
         postData={
             '_ctl1:rbtType': 'College'
         }
-        postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl[SType])))
-        req=self._session.post(self.__searchUrl[SType], data=postData, headers=self.header)
+        postData.update(getHiddenvalue(self.getHtmlText(SEARCH_URL[SType])))
+        req=self._session.post(SEARCH_URL[SType], data=postData, headers=self.header)
         if SType=='教工' or college==None:
-            return self._getHiddenvalue(req.text)
+            return getHiddenvalue(req.text)
         else:
             postData={
                 '_ctl1:rbtType': 'College',
                 '_ctl1:ddlCollege': self.__unitIds[college]['id'],
             }
-            postData.update(self._getHiddenvalue(req.text))
-            req=self._session.post(self.__searchUrl[SType], data=postData, headers=self.header)
-            return self._getHiddenvalue(req.text)
-        
-    def __getUnitId(self,stu=False,clgName=None):
-        #获取各单位的id
-        if len(self.__unitIds)==0:
+            postData.update(getHiddenvalue(req.text))
+            req=self._session.post(SEARCH_URL[SType], data=postData, headers=self.header)
+            return getHiddenvalue(req.text)
+    def getUnits(self):
+        """ 
+        返回一个列表,包含所有单位(学院)的全称
+        """
+        if not self.__unitIds:
+            self.__unitIds={}
             postData={
                 '_ctl1:rbtType': 'College'
             }
-            postData.update(self._getHiddenvalue(self.getHtmlText(self.__searchUrl['教工'])))
-            req=self._session.post(self.__searchUrl['教工'], data=postData, headers=self.header)
+            postData.update(getHiddenvalue(self.getHtmlText(SEARCH_URL['教工'])))
+            req=self._session.post(SEARCH_URL['教工'], data=postData, headers=self.header)
             table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_ddlCollege")
             for op in table.find_all('option'):
                 self.__unitIds[op.text.replace(' ','')]={}
                 self.__unitIds[op.text.replace(' ','')]['id']=op['value']
-        if not clgName in self.__unitIds:
-            raise ValueError('参数输入错误，你输入的单位不存在',clgName)
-        if stu:
-            if not 'classes' in self.__unitIds[clgName] :
-                postData={
-                    '_ctl1:rbtType': 'College',
-                    '_ctl1:ddlCollege': self.__unitIds[clgName]['id'],
-                }
-                postData.update(self.__getHiddenvalueOfUnitStu('学生'))
-                req=self._session.post(self.__searchUrl['学生'], data=postData, headers=self.header)
-                if req.status_code==500:
-                    raise ValueError('参数输入错误，你输入的单位不可用作学生查询',clgName)
-                table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_ddlClass")
-                self.__unitIds[clgName]['classes']={}
-                for op in table.find_all('option'):
-                    self.__unitIds[clgName]['classes'][op.text.replace(' ','')]=op['value']
+        return list(self.__unitIds.keys())
+    def __checkUnit(self,college):
+        if not self.__unitIds:
+            self.getUnits()
+        if not college in self.__unitIds:
+            raise ValueError('参数输入错误，你输入的单位(学院)不存在',college)
 
+    def getClasses(self,college):
+        """ 
+        返回一个列表,包含指定单位(学院)所有班级的全称
+        :param college:指定的单位(学院)全称
+        """
+        self.__checkUnit(college)
+        try:
+            self.__getUnitId(cla=True,college=college)
+        except ValueError:
+            print(college,'是一个纯教工的单位，没有任何班级')
+            return []
+        except:
+            raise
+        return list(self.__unitIds[college]['classes'].keys())
+    def __getUnitId(self,cla=False,college=None):
+        #获取各单位(学院)的id
+        self.__checkUnit(college)
+        if cla and not 'classes' in self.__unitIds[college]:
+            postData={
+                '_ctl1:rbtType': 'College',
+                '_ctl1:ddlCollege': self.__unitIds[college]['id'],
+            }
+            postData.update(self.__getHiddenvalueOfUnitStu('学生'))
+            req=self._session.post(SEARCH_URL['学生'], data=postData, headers=self.header)
+            if req.status_code==500:
+                raise ValueError('参数输入错误，你输入的单位不可用作学生查询',college)
+            table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_ddlClass")
+            self.__unitIds[college]['classes']={}
+            for op in table.find_all('option'):
+                self.__unitIds[college]['classes'][op.text.replace(' ','')]=op['value']
+            
     def __handleResp(self,req,SType='学生'):
         #处理查询结果，以字典形式返回
-        req.encoding = 'utf-8'
-        """ with open('test.html','w') as f:
-            f.write(req.text) """
+        req.encoding = 'UTF-8'
+        # with open('test.html','w') as f:
+        #     f.write(req.text)
         table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_dgContent")
         getdata=[]
         for i,atr in enumerate(table.find_all("tr")):
             if i!=0:
                 getdata.append({})
                 tds = atr.find_all("td")
-                for j,key in enumerate(self.__dataKeys[SType]):
+                for j,key in enumerate(DATA_KEYS[SType]):
                     getdata[i-1][key]=tds[j].get_text().replace(' ','')
         return getdata
+
+    def printUnits(self):
+        return self.__unitIds

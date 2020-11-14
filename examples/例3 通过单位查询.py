@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-  
 
-import os
-import sys
+import os,sys
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.abspath('..'))
 from jxnuJWspider import SearchClient
 import openpyxl
-import time
+import time,re
 
 #==================================================
 #
 #  在本例中，我们将尝试教务在线中的 所在单位 查询
-#  通过对数信学院17级各个班级的单位查询，
-#  我们可以获取数信学院17级全体名单，并把结果保存在新建的表格中
+#  通过对物理学院20、19级各个班级的单位查询，
+#  我们可以获取物理学院20、19级全体名单，并把结果保存在新建的表格中
 #
 #==================================================
 
@@ -26,18 +25,23 @@ if __name__ == "__main__":
     ws.title = "查询结果"
     ws.append(['学院','班级名称','学号','姓名','性别'])
 
-    #手动输入学院和班级列表(必须输入教务在线上的全称)
-    college='数学与信息科学学院'
-    classes=[
-        '17级数学与应用数学1班',
-        '17级数学与应用数学2班',
-        '17级数学与应用数学3班',
-        '17级数学与应用数学4班',
-        '17级数学与应用数学英才班',
-        '17级数学与应用数学（免费师范生）班',
-        '17级信息与计算科学班',
-        '17级统计学班',
-        '17级经济统计学班']
+    #获取物理学院班级列表(必须输入教务在线上的学院全称)
+    college='物理与通信电子学院'
+    classes=jwsc.getClasses(college)
+    
+    #你可以通过 jwsc.getUnits() 获取所有学院的全称列表
+    """ 例：
+    units = jwsc.getUnits()
+    for u in units:
+        print(u)
+    """
+    
+    #使用re模块删选班级，去除以非20、19开头的班级
+    print('删除前:',classes)
+    for c in classes[::-1]:
+        if not re.match('20|19',c):
+            classes.remove(c)
+    print('删除后:',classes)
 
     #=========================开始查询=========================
     i=1
