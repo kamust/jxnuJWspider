@@ -1,5 +1,5 @@
 # -*- coding:utf8 -*- 
-import requests
+import requests, re
 from bs4 import BeautifulSoup
 import time
 from .login import JWclient, getHiddenvalue
@@ -144,19 +144,25 @@ class SearchClient(JWclient):
             for op in table.find_all('option'):
                 self.__unitIds[college]['classes'][op.text.replace(' ','')]=op['value']
             
-    def __handleResp(self,req,SType='学生'):
+    def __handleResp(self,req,SType):
         #处理查询结果，以字典形式返回
         req.encoding = 'UTF-8'
-        # with open('test.html','w') as f:
+        # with open('test.html','w',encoding='UTF-8') as f:
         #     f.write(req.text)
+        # print(req.status_code)
         table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_dgContent")
         getdata=[]
         for i,atr in enumerate(table.find_all("tr")):
-            if i!=0:
-                getdata.append({})
+            if i:
+                d={}
                 tds = atr.find_all("td")
                 for j,key in enumerate(DATA_KEYS[SType]):
-                    getdata[i-1][key]=tds[j].get_text().replace(' ','')
+                    d[key]=tds[j].get_text().replace(' ','')
+                try:
+                    d['UserNum']=re.search(r"UserNum=(.*?)'", tds[j+1].contents[1]['href'],flags=re.I).group(1)
+                except:
+                    print(d['姓名'],'没找到UserNum')
+                getdata.append(d)
         return getdata
 
     def printUnits(self):
