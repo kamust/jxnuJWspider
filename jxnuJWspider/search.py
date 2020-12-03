@@ -152,6 +152,8 @@ class SearchClient(JWclient):
         # print(req.status_code)
         table = BeautifulSoup(req.text, "html.parser").find(id="_ctl1_dgContent")
         getdata=[]
+        if not table:
+            return []
         for i,atr in enumerate(table.find_all("tr")):
             if i:
                 d={}
